@@ -10,7 +10,9 @@
 #include <map_cleaner/MovingPointIdentification.hpp>
 #include <map_cleaner/utils.hpp>
 #include <voxel_grid_large.h>
-#include <pcd_io_with_indices.h>
+
+#include <pcl/filters/extract_indices.h>
+// #include <pcd_io_with_indices.h>
 
 // #define PUBLISH_GRID_MAP
 
@@ -118,25 +120,47 @@ class MapCleaner
     return res;
   }
 
-  bool saveCloud(const std::string &filename, const CloudType &cloud, const PIndices::ConstPtr indices_ptr = nullptr)
+  void saveCloud(const std::string &filename, const CloudType &cloud, const PIndices::ConstPtr indices_ptr = nullptr)
   {
-    try{
-      pcl::PCDWriterWithIndices writer;
-      if(indices_ptr == nullptr){
-        PIndices dummy_indices;
-        dummy_indices.indices.resize(cloud.size());
-        for(int i = 0; i < cloud.size(); i++)
-          dummy_indices.indices[i] = i;
-        writer.writeBinaryWithIndices(filename, cloud, dummy_indices);
+      if (indices_ptr == nullptr)
+      {
+        pcl::io::savePCDFileBinary(filename, cloud);
+        return;
       }
-      else{
-        writer.writeBinaryWithIndices(filename, cloud, *indices_ptr);
-      }
-      return true;
-    }
-    catch( ... ){
-      return false;
-    }
+      // extractor
+      
+      pcl::ExtractIndices<PointType> extractor;
+      extractor.setInputCloud(cloud.makeShared());
+      extractor.setIndices(indices_ptr);
+
+      // 创建一个新的点云对象用于存放提取出来的点
+      pcl::PointCloud<PointType>::Ptr extractedCloud(
+          new pcl::PointCloud<PointType>);
+
+      // 提取点云
+      extractor.filter(*extractedCloud);
+
+      // 现在 extractedCloud 包含了所有提取出来的点
+
+      // 保存提取出来的点云
+      pcl::io::savePCDFileBinary(filename, *extractedCloud);
+      // try{
+      //   pcl::PCDWriterWithIndices writer;
+      //   if(indices_ptr == nullptr){
+      //     PIndices dummy_indices;
+      //     dummy_indices.indices.resize(cloud.size());
+      //     for(int i = 0; i < cloud.size(); i++)
+      //       dummy_indices.indices[i] = i;
+      //     writer.writeBinaryWithIndices(filename, cloud, dummy_indices);
+      //   }
+      //   else{
+      //     writer.writeBinaryWithIndices(filename, cloud, *indices_ptr);
+      //   }
+      //   return true;
+      // }
+      // catch( ... ){
+      //   return false;
+      // }
   }
 
   void initialize()

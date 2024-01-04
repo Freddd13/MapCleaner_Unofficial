@@ -1,21 +1,21 @@
 loader:
-  pcds_dir: "/home/main/Documents/kitti_odometry/dataset_odometry_velodyne/dataset/sequences/01/velodyne"
-  pose_file: "/home/main/Documents/kitti_odometry/data_odometry_labels/dataset/sequences/01/poses.txt"
-  kitti_calibration_file: "/home/main/Documents/kitti_odometry/data_odometry_calib/dataset/sequences/01/calib.txt"
+  pcds_dir: "/mnt/d/dataset/semantic_kitti/00/velodyne"
+  pose_file: "/mnt/d/dataset/semantic_kitti/00/poses.txt"
+  kitti_calibration_file: "/mnt/d/dataset/semantic_kitti/00/calib.txt"
   start: 4390
-  end: 4530
+  end: 4531
   format: "kitti" #"erasor"
 
 map_cleaner:
-  save_dir: "/tmp"
+  save_dir: "/mnt/d/dataset/semantic_kitti/00/mapcleaner"
   frame_id: "map"
   in_process_visualization: true
-  visualization_vg_res: 0.4
+  visualization_vg_res: 0.1
 
 ground_segmentation:
   use_object_seg: false
-  use_voxel_grid: true
-  voxel_leaf_size: 0.1
+  use_voxel_grid: false
+  voxel_leaf_size: 0.05
 
 grid_map_builder:
   grid_res: 0.2
@@ -48,7 +48,7 @@ divide_by_terrain:
   on_terrain_only: true
 
 moving_point_identification:
-  voxel_leaf_size: 0.2
+  voxel_leaf_size: 0.05
   fov_h_deg: 360.0
   fov_v_deg: 30.0
   res_h_deg: 0.16

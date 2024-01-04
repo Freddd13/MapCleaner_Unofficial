@@ -279,7 +279,7 @@ public:
       return false;
 
     CloudType::Ptr cloud_ds(new CloudType);
-    std::vector<pcl::Indices> vg_indices;
+    std::vector<std::vector<int>> vg_indices;
     vg_.setInputCloud(cloud);
     vg_.setIndices(in_indices);
     vg_.filterWithOutputIndices(*cloud_ds, vg_indices);

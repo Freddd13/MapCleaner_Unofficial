@@ -1,0 +1,27 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/yxt/code/slam/gr_loam_ws/devel/include/**",
+        "/home/yxt/software/buildmono/ws_livox/devel/include/**",
+        "/home/yxt/code/ros/learn-ros/devel/include/**",
+        "/opt/ros/melodic/include/**",
+        "/home/yxt/code/slam/a_loam/src/A-LOAM/include/**",
+        "/home/yxt/code/slam/gr_loam_ws/src/gr_loam/include/**",
+        "/home/yxt/code/slam/kumo_slam_ws/src/kumo_slam/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "clang-x64",
+      "compilerPath": "/usr/bin/clang++",
+      "compileCommands": "/home/yxt/code/slam/gr_loam_ws/build/compile_commands.json",
+      "cStandard": "gnu11",
+      "cppStandard": "c++17"
+    }
+  ],
+  "version": 4
+}

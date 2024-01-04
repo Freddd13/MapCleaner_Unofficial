@@ -38,14 +38,14 @@
  */
 
 #pragma once
-
+#include <pcl/PointIndices.h>
 #include <pcl/filters/boost.h>
 #include <pcl/filters/filter.h>
 #include <map>
 
 using Vector4int64_t = Eigen::Matrix<std::int64_t, 4, 1>;
 using Vector3int64_t = Eigen::Matrix<std::int64_t, 3, 1>;
-
+// using std::vector<int> = std::vector<int>;
 namespace pcl
 {
   /** \brief VoxelGridLarge assembles a local 3D grid over a given PointCloud, and downsamples + filters the data.
@@ -75,8 +75,8 @@ namespace pcl
 
     public:
 
-      using Ptr = shared_ptr<VoxelGridLarge<PointT> >;
-      using ConstPtr = shared_ptr<const VoxelGridLarge<PointT> >;
+      using Ptr = boost::shared_ptr<VoxelGridLarge<PointT> >;
+      using ConstPtr = boost::shared_ptr<const VoxelGridLarge<PointT> >;
 
       /** \brief Empty constructor. */
       VoxelGridLarge () :
@@ -344,7 +344,7 @@ namespace pcl
         * \param[out] output_indices the resultant indices
         */
       void
-      filterWithOutputIndices (PointCloud &output, std::vector<pcl::Indices> &indices)
+      filterWithOutputIndices (PointCloud &output, std::vector<std::vector<int>> &indices)
       {
         output_indices_ptr_ = &indices;
         pcl::Filter<PointT>::filter(output);
@@ -390,7 +390,7 @@ namespace pcl
       unsigned int min_points_per_voxel_;
 
       /** \brief output indices pointer */
-      std::vector<pcl::Indices> *output_indices_ptr_;
+      std::vector<std::vector<int>> *output_indices_ptr_;
 
       using FieldList = typename pcl::traits::fieldList<PointT>::type;
 

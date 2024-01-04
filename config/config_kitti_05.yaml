@@ -1,13 +1,13 @@
 loader:
-  pcds_dir: "/home/main/Documents/kitti_odometry/dataset_odometry_velodyne/dataset/sequences/01/velodyne"
-  pose_file: "/home/main/Documents/kitti_odometry/data_odometry_labels/dataset/sequences/01/poses.txt"
-  kitti_calibration_file: "/home/main/Documents/kitti_odometry/data_odometry_calib/dataset/sequences/01/calib.txt"
-  start: 4390
-  end: 4530
+  pcds_dir: "/mnt/d/dataset/semantic_kitti/05/velodyne"
+  pose_file: "/mnt/d/dataset/semantic_kitti/05/poses.txt"
+  kitti_calibration_file: "/mnt/d/dataset/semantic_kitti/05/calib.txt"
+  start: 2350
+  end: 2671
   format: "kitti" #"erasor"
 
 map_cleaner:
-  save_dir: "/tmp"
+  save_dir: "/mnt/d/dataset/semantic_kitti/05/mapcleaner"
   frame_id: "map"
   in_process_visualization: true
   visualization_vg_res: 0.4
