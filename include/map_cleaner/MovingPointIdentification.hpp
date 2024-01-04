@@ -349,6 +349,7 @@ public:
     {
       PIndices *dst_indices;
       if(vote_list_dynamic[i] <= vote_list_static[i])
+      // if(vote_list_dynamic[i] <= 2)
         dst_indices = &static_indices;
       else
         dst_indices = &dynamic_indices;
