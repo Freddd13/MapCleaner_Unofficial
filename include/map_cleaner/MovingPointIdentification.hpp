@@ -1,13 +1,15 @@
 #pragma once
 
+#include "ros/assert.h"
+#include <grid_map_msgs/GridMap.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <ros/ros.h>
 #include <tf2_ros/static_transform_broadcaster.h>
-#include <map_cleaner/DataLoader.hpp>
-#include <grid_map_ros/grid_map_ros.hpp>
-#include <grid_map_msgs/GridMap.h>
-#include <map_cleaner/utils.hpp>
-#include <pcl/kdtree/kdtree_flann.h>
 #include <voxel_grid_large.h>
+#include <grid_map_ros/grid_map_ros.hpp>
+#include <map_cleaner/DataLoader.hpp>
+#include <map_cleaner/DivideByTerrain.hpp>
+#include <map_cleaner/utils.hpp>
 
 class MovingPointIdentification
 {
@@ -43,8 +45,8 @@ private:
     pos_v = std::asin(p.z / range) * res_v_scale_;
   }
 
-  grid_map::GridMapPtr buildRangeImage(const CloudType &input)
-  {
+  grid_map::GridMapPtr buildRangeImage(const CloudType &input,
+                                       std::vector<bool> &is_above_ground_vec) {
     grid_map::GridMapPtr range_im(new grid_map::GridMap);
     range_im->setFrameId("map");
     range_im->setGeometry(grid_map::Length(fov_h_ * res_h_scale_, fov_v_ * res_v_scale_), 
@@ -56,6 +58,9 @@ private:
     {
       const PointType &p = input[i];
       if(!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z)){
+        continue;
+      }
+      if (!is_above_ground_vec[i]) {
         continue;
       }
 
@@ -272,9 +277,11 @@ public:
     frame_id_ = frame_id;
   }
 
-  bool compute(DataLoaderBase::Ptr &loader, const CloudType::ConstPtr &cloud, const PIndices::ConstPtr &in_indices, 
-               PIndices &static_indices, PIndices &dynamic_indices)
-  {
+  bool compute(DataLoaderBase::Ptr &loader,
+               DivideByTerrain::Ptr divide_by_terrain,
+               const grid_map::GridMap &grid_terrain, const CloudType::ConstPtr &cloud,
+               const PIndices::ConstPtr &in_indices, PIndices &static_indices,
+               PIndices &dynamic_indices) {
     if(cloud->empty() || loader->getSize() == 0 || in_indices->indices.empty())
       return false;
 
@@ -313,8 +320,23 @@ public:
       if(i % (frame_skip_ + 1) != 0)
         continue;
 
-      // st = ros::WallTime::now();
-      grid_map::GridMapPtr range_im = buildRangeImage(*frame.frame);
+
+      // kumo: filter belowground part
+      /// kumo: transform frame to world frame to compare with terrain
+      Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
+      T.block<3, 3>(0, 0) = frame.r.toRotationMatrix();
+      T.block<3, 1>(0, 3) = frame.t;
+      CloudType::Ptr cloud_frame_world(new CloudType);
+      pcl::transformPointCloud(*frame.frame, *cloud_frame_world, T);
+
+      std::vector<bool> is_above_ground_vec(frame.frame->size(), false);
+      if (!divide_by_terrain->compute(*cloud_frame_world, grid_terrain,
+                                      is_above_ground_vec)) {
+        ROS_ERROR("Failed to divide by terrain for scan.");
+        ROS_BREAK();
+      }
+      // st = ros::WallTime::now(); //TODO (kumo) we can put the aboveground filter inside the buildRangeImage function
+      grid_map::GridMapPtr range_im = buildRangeImage(*frame.frame, is_above_ground_vec);
       // std::cout << "build range image: " << (ros::WallTime::now() - st).toSec() << " sec" << std::endl;
 
       Eigen::Affine3f lidar_pose = Eigen::Translation3f(frame.t) * frame.r.matrix();

@@ -414,7 +414,9 @@ public:
 
     PIndices::Ptr static_indices(new PIndices);
     PIndices::Ptr dynamic_indices(new PIndices);
-    if(!moving_point_identification_->compute(loader_, cloud, ground_above_indices, *static_indices, *dynamic_indices)){
+    if (!moving_point_identification_->compute(
+            loader_, divide_by_terrain_, *grid_map_ptr, cloud,
+            ground_above_indices, *static_indices, *dynamic_indices)) {
       return ;
     }
     ROS_INFO_STREAM("Finished: Moving Point Identification");

@@ -85,4 +85,33 @@ public:
 
     return true;
   }
+
+
+  // kumo: simple ver,just keep points above
+  bool compute(const CloudType &cloud, 
+               const grid_map::GridMap &grid, std::vector<bool>& is_above_ground_vec) {
+    if (!grid.exists(input_layer_name_)) {
+      ROS_ERROR_STREAM("GridMap Does Not Have The Required Layers.");
+      return false;
+    }
+
+    assert(is_above_ground_vec.size() == cloud.size());
+    const grid_map::Matrix &terrain_layer = grid[input_layer_name_];
+    for (size_t p_idx = 0; p_idx < is_above_ground_vec.size(); p_idx++) {
+      const PointType &p = cloud[p_idx];
+      grid_map::Index idx;
+      if (!grid.getIndex(grid_map::Position(p.x, p.y), idx)) {
+        continue;
+      } 
+      if (!std::isfinite(terrain_layer(idx[0], idx[1]))) {
+        continue;
+      } 
+      float diff_z = p.z - terrain_layer(idx[0], idx[1]);
+      if (diff_z > -threshold_) {
+        is_above_ground_vec[p_idx] = true;
+      } 
+    }
+
+    return true;
+  }
 };
