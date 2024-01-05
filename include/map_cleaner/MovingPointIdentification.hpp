@@ -11,6 +11,8 @@
 #include <map_cleaner/DivideByTerrain.hpp>
 #include <map_cleaner/utils.hpp>
 
+#include <pcl/octree/octree_search.h>
+#include "kumo_structures.hpp"
 class MovingPointIdentification
 {
 public:
@@ -34,6 +36,12 @@ private:
   PublisherPtr pub_ptr_;
   tf2_ros::StaticTransformBroadcaster static_tf_br_;
   std::string frame_id_;
+  pcl::octree::OctreePointCloudSearch<PointType>::Ptr octree_;
+
+  std::unordered_map<int, kumo::VoxelKey> point2voxel_;
+  std::unordered_map<int, kumo::GridKey> point2grid_;
+
+  kumo::VoxelMap voxel_map_;
 
   enum class ComparisonResult{CASE_A = 0, CASE_B = 1, CASE_C = 2, CASE_D = 3};
   enum class FusedResult{CASE_A, CASE_C, OTHERWISE};
@@ -98,6 +106,14 @@ private:
       submap[i] = input[nanoflann_res[i].first];
       indices[i] = nanoflann_res[i].first;
     }
+
+    // kumo: build octomap for submap
+    // float octomap_resolution_ = 0.1;
+    // octree_.reset(new pcl::octree::OctreePointCloudSearch<PointType>(
+    //     octomap_resolution_));
+    // octree_->setInputCloud(submap.makeShared());
+    // octree_->addPointsFromInputCloud();
+    // octree_->
   }
   
   inline ComparisonResult compareRange(const float scan_range, const float target_range)
@@ -144,6 +160,8 @@ private:
       }
     }
 
+
+    //FIXME : need to be modified
     if(counter[0] != 0)
       return FusedResult::CASE_A;
     else if(counter[1] != 0)
@@ -173,6 +191,53 @@ private:
         vote_list_dynamic[indices[i]]++;
     }
   }
+
+  void KumoCompareSubmapWithScan(const grid_map::GridMap &range_im,
+                            const CloudType &submap,
+                            const std::vector<int> &indices,
+                            std::vector<int> &vote_list_static,
+                            std::vector<int> &vote_list_dynamic) {
+    const grid_map::Matrix &layer = range_im[layer_name_];
+
+#pragma omp parallel for
+    for (int i = 0; i < submap.size(); ++i) {
+      float range, pos_h, pos_v;
+      getRangeImageCoordinate(submap[i], range, pos_h, pos_v);
+      FusedResult res = getFusedResult(range_im, layer,
+                                       grid_map::Position(pos_h, pos_v), range);
+
+      if (res == FusedResult::CASE_A)
+        vote_list_static[indices[i]]++;
+      else if (res == FusedResult::CASE_C)
+        vote_list_dynamic[indices[i]]++;
+      // DeepDarkFantasies(submap, submap[i], indices[i]);
+    }
+  }
+
+  inline void DeepDarkFantasies(const CloudType &submap, const PointType &pt_submap,
+                         int original_index) {
+    // kumo::VoxelKey &key = point2voxel_[original_index];
+    // auto& voxel = voxel_map_[key];
+    // get voxel point indices
+    // for (int i = 0; i < voxel.indices.size(); ++i) {
+      // int index = voxel.indices[i];
+      // if (index == original_index) continue;
+      // const PointType &pt = submap[index];
+    // }
+    // 计算立方体的边界
+    // float half_side = 0.6;  // 立方体半边长
+    // Eigen::Vector3f minPoint(pt_submap.x - half_side,
+    //                          pt_submap.y - half_side,
+    //                          pt_submap.z - half_side);
+    // Eigen::Vector3f maxPoint(pt_submap.x + half_side,
+    //                          pt_submap.y + half_side,
+    //                          pt_submap.z + half_side);
+    // // 执行 boxSearch
+    // std::vector<int> pointIdxBoxSearch;
+    // int num_searched = octree_->boxSearch(minPoint, maxPoint, pointIdxBoxSearch);
+    // // ROS_WARN("num_searched: %d", num_searched);
+  }
+
 
   void publish(const DataLoaderBase::Frame &frame, const CloudType::ConstPtr &input, const std::vector<int> &indices, 
                const std::vector<int> &vote_list_static, const std::vector<int> &vote_list_dynamic)
@@ -238,7 +303,7 @@ public:
                             const PublisherPtr pub_ptr = nullptr, const std::string &frame_id = "map")
   {
     vg_.setLeafSize(voxel_leaf_size, voxel_leaf_size, voxel_leaf_size);
-    
+    octree_.reset(new pcl::octree::OctreePointCloudSearch<PointType>(voxel_leaf_size));
     fov_h_ = fov_h;
     fov_v_ = fov_v;
 
@@ -277,39 +342,79 @@ public:
     frame_id_ = frame_id;
   }
 
+  void InsertNonground2GridAndVoxelMaps(kumo::VoxelMap &voxel_map,kumo::GridMap& grid_map, CloudType::Ptr cloud) {
+    static float voxel_size_ = 0.8;
+    for (int i = 0; i < cloud->size(); i++) {
+      const PointType &p = cloud->points[i];
+      kumo::insertPointIntoVoxelMap(p, i, voxel_size_, voxel_map, point2voxel_);
+      grid_map.insertPointIntoGridMap(p, i, false);
+    }
+  }
+
+  void InsertGround2GridMap(kumo::GridMap &grid_map, CloudType::Ptr cloud) {
+    for (int i = 0; i < cloud->size(); i++) {
+      const PointType &p = cloud->points[i];
+      grid_map.insertPointIntoGridMap(p, i, true);
+    }
+  }
+
   bool compute(DataLoaderBase::Ptr &loader,
                DivideByTerrain::Ptr divide_by_terrain,
-               const grid_map::GridMap &grid_terrain, const CloudType::ConstPtr &cloud,
-               const PIndices::ConstPtr &in_indices, PIndices &static_indices,
+               const grid_map::GridMap &grid_terrain,
+               const CloudType::ConstPtr &cloud,
+               const PIndices::ConstPtr &aboveground_indices,
+               const PIndices::ConstPtr &ground_indices, PIndices &static_indices,
                PIndices &dynamic_indices) {
-    if(cloud->empty() || loader->getSize() == 0 || in_indices->indices.empty())
+    if(cloud->empty() || loader->getSize() == 0 || aboveground_indices->indices.empty())
       return false;
 
-    CloudType::Ptr cloud_ds(new CloudType);
+    CloudType::Ptr cloud_target(new CloudType);
     std::vector<std::vector<int>> vg_indices;
     vg_.setInputCloud(cloud);
-    vg_.setIndices(in_indices);
-    vg_.filterWithOutputIndices(*cloud_ds, vg_indices);
+    vg_.setIndices(aboveground_indices);
+    vg_.filterWithOutputIndices(*cloud_target, vg_indices);
 
+    CloudType::Ptr cloud_ground_ds(new CloudType);
+    std::vector<std::vector<int>> groundds_indices;
+    vg_.setInputCloud(cloud);
+    vg_.setIndices(ground_indices);
+    vg_.filterWithOutputIndices(*cloud_ground_ds, groundds_indices);
+    
+
+    // kumo: build voxelmap and gridmap
+    kumo::GridMap kumo_grid_map;
+    kumo_grid_map.InitGridTerrainHeights(grid_terrain, "elevation");
+    InsertGround2GridMap(kumo_grid_map, cloud_ground_ds);
+    InsertNonground2GridAndVoxelMaps(voxel_map_, kumo_grid_map, cloud_target);
+    kumo_grid_map.DEBUGGetGroundNum();
+
+    ROS_ERROR("original cloud size: %d", cloud->size());
+    ROS_ERROR("ds cloud size: %d", cloud_target->size());
+    ROS_ERROR("kumo: voxel map size: %d", voxel_map_.size());
+    ROS_ERROR("kumo: grid map size: %d, total record points: %d",
+              kumo_grid_map.num_valid_grids_, kumo_grid_map.num_points_total_);
+
+
+    // original
     std::vector<int> vote_list_static;
-    vote_list_static.resize(cloud_ds->size(), 0);
+    vote_list_static.resize(cloud_target->size(), 0);
     std::vector<int> vote_list_dynamic;
-    vote_list_dynamic.resize(cloud_ds->size(), 0);
+    vote_list_dynamic.resize(cloud_target->size(), 0);
 
     PointCloudAdaptor<PointType> adapter;
-    adapter.cloud_ptr_ = cloud_ds;
+    adapter.cloud_ptr_ = cloud_target;
     KDTreeNanoFlannPCL<PointType> kdtree(3, adapter);
     kdtree.buildIndex();
 
     CloudType::Ptr submap(new CloudType);
     CloudType::Ptr lidar_coordinate_submap(new CloudType);
     std::vector<int> submap_indices;
-    submap_indices.reserve(cloud_ds->size());
+    submap_indices.reserve(cloud_target->size());
     Eigen::Affine3f last_lidar_pose = Eigen::Affine3f::Identity();
 
     for(int i = 0; i < loader->getSize(); ++i)
     {
-      // auto st = ros::WallTime::now();
+      auto st = ros::WallTime::now();
       DataLoaderBase::Frame frame = loader->loadFrame(i);
       if(frame.frame->empty()){
         ROS_WARN_STREAM("Frame " << frame.idx + 1 << " is empty.");
@@ -321,6 +426,7 @@ public:
         continue;
 
 
+      //////////////////////////////////////////////////////////////////////////////////////////
       // kumo: filter belowground part
       /// kumo: transform frame to world frame to compare with terrain
       Eigen::Matrix4f T = Eigen::Matrix4f::Identity();
@@ -339,6 +445,8 @@ public:
       grid_map::GridMapPtr range_im = buildRangeImage(*frame.frame, is_above_ground_vec);
       // std::cout << "build range image: " << (ros::WallTime::now() - st).toSec() << " sec" << std::endl;
 
+
+      ////////////////////////////////////build submap////////////////////////////////////////////
       Eigen::Affine3f lidar_pose = Eigen::Translation3f(frame.t) * frame.r.matrix();
       if(submap->empty() || (last_lidar_pose.translation() - frame.t).norm() > submap_update_dist_){
         // st = ros::WallTime::now();
@@ -348,11 +456,13 @@ public:
       }
       pcl::transformPointCloud(*submap, *lidar_coordinate_submap, lidar_pose.inverse());
 
-      // st = ros::WallTime::now();
-      compareSubmapAndScan(*range_im, *lidar_coordinate_submap, submap_indices, vote_list_static, vote_list_dynamic);
-      // std::cout << "compare: " << (ros::WallTime::now() - st).toSec() << " sec" << std::endl;
+      st = ros::WallTime::now();
+      ////////////////////////////////////compare////////////////////////////////////////////
+      // compareSubmapAndScan(*range_im, *lidar_coordinate_submap, submap_indices, vote_list_static, vote_list_dynamic);
+      KumoCompareSubmapWithScan(*range_im, *lidar_coordinate_submap, submap_indices, vote_list_static, vote_list_dynamic);
+      std::cout << "compare: " << (ros::WallTime::now() - st).toSec() << " sec" << std::endl;
 
-      publish(frame, cloud_ds, submap_indices, vote_list_static, vote_list_dynamic);
+      publish(frame, cloud_target, submap_indices, vote_list_static, vote_list_dynamic);
 
       if(i % 100 == 0){
         ROS_INFO_STREAM("Compute Moving Point Identification: " << i + 1 << " / " << loader->getSize());
@@ -362,22 +472,64 @@ public:
     DataLoaderBase::Frame dummy_frame;
     dummy_frame.t = loader->getFrameInfo(loader->getSize() - 1).t;
     dummy_frame.r = loader->getFrameInfo(loader->getSize() - 1).r;
-    publish(dummy_frame, cloud_ds, std::vector<int>(), vote_list_static, vote_list_dynamic); //dummy
+    publish(dummy_frame, cloud_target, std::vector<int>(), vote_list_static, vote_list_dynamic); //dummy
     ROS_INFO_STREAM("Compute Moving Point Identification: " << loader->getSize() << " / " << loader->getSize());
 
     static_indices.indices.clear();
     dynamic_indices.indices.clear();
-    for(int i = 0; i < cloud_ds->size(); i++)
+    std::vector<bool> is_dynamic_vec(cloud_target->size(), false);
+    std::vector<int> dynamic_indices_ds, static_indices_ds;
+    for(int i = 0; i < cloud_target->size(); i++)
     {
-      PIndices *dst_indices;
-      if(vote_list_dynamic[i] <= vote_list_static[i])
-      // if(vote_list_dynamic[i] <= 2)
-        dst_indices = &static_indices;
-      else
-        dst_indices = &dynamic_indices;
+      std::vector<int> *dst_indices;
+      if(vote_list_dynamic[i] > vote_list_static[i]) { //dynamic
+        is_dynamic_vec[i] = true;
+        dynamic_indices_ds.push_back(i);
+      }
+      // else {// dynamic
+      //   dst_indices = &dynamic_indices_ds;
+      //   is_dynamic_vec[i] = true;
+      // }
+      // for(int j = 0; j < vg_indices[i].size(); ++j){
+      //   dst_indices->indices.push_back(vg_indices[i][j]);
+      // }
+    }
 
-      for(int j = 0; j < vg_indices[i].size(); ++j){
-        dst_indices->indices.push_back(vg_indices[i][j]);
+    // expand dynamic indices
+    ROS_WARN("dynamic_indices_ds size: %d", dynamic_indices_ds.size());
+    for (const auto &index : dynamic_indices_ds) {
+      kumo_grid_map.IncreaseDynamicNums(index);
+    }
+
+    
+    std::vector<int> extra_dynamic_indices = kumo_grid_map.GetExpandGridDynamicIndices();
+    
+    // 1. final dynamic = dynamic + extra_dynamic --> retreive voxels
+    dynamic_indices_ds.insert(dynamic_indices_ds.end(),
+                              extra_dynamic_indices.begin(),
+                              extra_dynamic_indices.end());
+    /// unordered set 去重dynamic indices
+    std::unordered_set<int> dynamic_indices_set(
+        dynamic_indices_ds.begin(), dynamic_indices_ds.end());
+    dynamic_indices_ds.assign(dynamic_indices_set.begin(),
+                              dynamic_indices_set.end());
+
+    /// get raw dynamic
+    for (const auto& idx_ds: dynamic_indices_ds) {
+      for (int idx_raw = 0; idx_raw < vg_indices[idx_ds].size(); ++idx_raw) {
+        dynamic_indices.indices.push_back(vg_indices[idx_ds][idx_raw]);
+      }
+    }
+
+
+    // 2. final static = static - extra_dynamic --> retreive voxels
+    for(int i = 0; i < cloud_target->size(); i++){
+      if (is_dynamic_vec[i]) {
+        continue;
+      }
+      /// get raw static
+      for (int idx_raw = 0; idx_raw < vg_indices[i].size(); ++idx_raw) {
+        static_indices.indices.push_back(vg_indices[i][idx_raw]);
       }
     }
 
