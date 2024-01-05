@@ -50,12 +50,12 @@ divide_by_terrain:
 moving_point_identification:
   voxel_leaf_size: 0.05
   fov_h_deg: 360.0
-  fov_v_deg: 30.0
+  fov_v_deg: 50.0
   res_h_deg: 0.16
   res_v_deg: 0.4
   lidar_range: 70.0
   delta_h: 2
   delta_v: 1
-  threshold: 0.5
+  threshold: 0.3
   frame_skip: 0
   submap_update_dist: 10.0

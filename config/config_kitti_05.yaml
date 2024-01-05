@@ -56,6 +56,6 @@ moving_point_identification:
   lidar_range: 70.0
   delta_h: 2
   delta_v: 1
-  threshold: 0.5
+  threshold: 0.3
   frame_skip: 0
   submap_update_dist: 10.0

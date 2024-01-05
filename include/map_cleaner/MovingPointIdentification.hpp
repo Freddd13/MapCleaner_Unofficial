@@ -382,11 +382,12 @@ public:
     
 
     // kumo: build voxelmap and gridmap
-    kumo::GridMap kumo_grid_map;
+    kumo::GridMap kumo_grid_map(cloud_target);
     kumo_grid_map.InitGridTerrainHeights(grid_terrain, "elevation");
     InsertGround2GridMap(kumo_grid_map, cloud_ground_ds);
     InsertNonground2GridAndVoxelMaps(voxel_map_, kumo_grid_map, cloud_target);
-    kumo_grid_map.DEBUGGetGroundNum();
+    // kumo_grid_map.DEBUGGetGroundNum();
+    // ROS_BREAK();
 
     ROS_ERROR("original cloud size: %d", cloud->size());
     ROS_ERROR("ds cloud size: %d", cloud_target->size());
@@ -495,14 +496,20 @@ public:
       // }
     }
 
+
     // expand dynamic indices
     ROS_WARN("dynamic_indices_ds size: %d", dynamic_indices_ds.size());
     for (const auto &index : dynamic_indices_ds) {
       kumo_grid_map.IncreaseDynamicNums(index);
     }
+    kumo_grid_map.DEBUGGetGroundNum();
+    ROS_BREAK();
 
-    
-    std::vector<int> extra_dynamic_indices = kumo_grid_map.GetExpandGridDynamicIndices();
+
+    std::vector<int> extra_dynamic_indices =
+        kumo_grid_map.NeighborAwareRegionGrowing();
+    ROS_WARN("extra_dynamic_indices size: %d", extra_dynamic_indices.size());
+    // std::vector<int> extra_dynamic_indices = kumo_grid_map.GetExpandGridDynamicIndices();
     
     // 1. final dynamic = dynamic + extra_dynamic --> retreive voxels
     dynamic_indices_ds.insert(dynamic_indices_ds.end(),
