@@ -502,8 +502,8 @@ public:
     for (const auto &index : dynamic_indices_ds) {
       kumo_grid_map.IncreaseDynamicNums(index);
     }
-    kumo_grid_map.DEBUGGetGroundNum();
-    ROS_BREAK();
+    // kumo_grid_map.DEBUGGetGroundNum();
+    // ROS_BREAK();
 
 
     std::vector<int> extra_dynamic_indices =

@@ -157,6 +157,8 @@ struct GridMap {
                grid_data.nonground_indices.size(),
                grid_data.dynamic_indices.size());
       ROS_WARN("====================================== >>>>>>>>>");
+
+      // 因为地图存的nonground是filter了height的，而更新dynamic没限制height，可能出现记录Nonground < dynamic，（z thresh之上出现较多动态点) 应该不用担心
     }
   }
 
@@ -398,8 +400,8 @@ struct GridMap {
       }
     }
 
-    ROS_WARN("growing cloud size: %d, original nondynamic: %d, expand num: %d",
-             cloud_to_grow.size(), nonground_indices.size() - dynamic_indices.size(), new_dynamic_indices.size());
+    // ROS_WARN("growing cloud size: %d, original nondynamic: %d, expand num: %d",
+    //          cloud_to_grow.size(), nonground_indices.size() - dynamic_indices.size(), new_dynamic_indices.size());
   }
 
   std::vector<int> NeighborAwareRegionGrowing() {
@@ -444,7 +446,7 @@ struct GridMap {
                                    new_dynamic_indices.end());                                 
     }
 
-    ROS_WARN("num_dynamic_grid: %d, num_selected_expand_grid: %d", num_dynamic_grid, num_selected_expand_grid);
+    // ROS_WARN("num_dynamic_grid: %d, num_selected_expand_grid: %d", num_dynamic_grid, num_selected_expand_grid);
     return extra_dynamic_indices;
   }
 };
