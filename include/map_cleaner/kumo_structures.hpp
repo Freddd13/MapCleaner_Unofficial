@@ -6,6 +6,7 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include "Eigen/src/Core/Matrix.h"
 #include "pcl/point_cloud.h"
 #include "pcl/point_types.h"
 
@@ -453,13 +454,16 @@ struct GridMap {
 
 /////////////////////////////////voxel/////////////////////////////////////
 
+// 定义一个3D向量作为哈希表的键
+typedef Eigen::Vector3i VoxelKey;
 struct Voxel {
+  VoxelKey self_key_;
   std::vector<int> indices;
+  bool is_valid_ = false;
   // cv::Mat tmp_range_image;
 };
 
-// 定义一个3D向量作为哈希表的键
-typedef Eigen::Vector3i VoxelKey;
+
 
 // 自定义哈希函数
 struct VoxelHash {
@@ -469,30 +473,72 @@ struct VoxelHash {
   }
 };
 
-typedef std::unordered_map<VoxelKey, Voxel, VoxelHash> VoxelMap;
+struct VoxelMap {
+  std::unordered_map<VoxelKey, Voxel, VoxelHash> voxel_map_;
+  std::unordered_map<int, VoxelKey> point2voxel_;
+  pcl::PointCloud<PointType>::ConstPtr cloud_;
+  float voxel_size_ = 0.8;
+  int num_valid_voxels_ = 0;
+  int num_points_total_ = 0;
 
-void insertPointIntoVoxelMap(const PointType& point, const int& index,
-                             const float& voxel_size, VoxelMap& voxel_map,
-                             std::unordered_map<int, VoxelKey>& point2voxel) {
-  // 计算体素键
-  VoxelKey key;
-  key[0] = static_cast<int>(floor(point.x / voxel_size));
-  key[1] = static_cast<int>(floor(point.y / voxel_size));
-  key[2] = static_cast<int>(floor(point.z / voxel_size));
 
-  // 插入点索引到哈希表
-  // 假设 `index` 是点的唯一索引
-  voxel_map[key].indices.push_back(index);
-  point2voxel[index] = key;
-}
+  VoxelMap(pcl::PointCloud<PointType>::ConstPtr cloud) : cloud_(cloud) {}
+
+  void insertPointIntoVoxelMap(const PointType& point, const int& index) {
+    // 计算体素键
+    VoxelKey key;
+    key[0] = static_cast<int>(floor(point.x / voxel_size_));
+    key[1] = static_cast<int>(floor(point.y / voxel_size_));
+    key[2] = static_cast<int>(floor(point.z / voxel_size_));
+
+    if (voxel_map_.find(key) == voxel_map_.end()) {
+      // 如果哈希表中没有这个体素，创建一个新的体素
+      Voxel voxel;
+      voxel.self_key_ = key;
+      voxel.is_valid_ = true;
+      voxel_map_[key] = voxel;
+      num_valid_voxels_++;
+    }
+    num_points_total_++;
+    // 插入点索引到哈希表
+    // 假设 `index` 是点的唯一索引
+    voxel_map_[key].indices.push_back(index);
+    point2voxel_[index] = key;
+  }
+
+  void GetNeighborVoxels() {
+    // if near center, not use neighbor?
+
+  }
+
+  void Project2RangeImage() {
+
+  }
+
+  void PostProcessNormal() {
+
+  }
+
+  bool ComputeNormalFromRangeImage(int target_point_index, Eigen::Vector3d& normal) {
+    // get current voxel
+
+    // check point's index on the range image
+
+    // check 5*5, if point not enough, return false
+    // if most points nearer than current, maybe it's in dynamic points, return
+    // false
+    //
+
+    // post process normal
+    // normal which points nearly up is ok, but near to downward is not ok
+    return true;
+  }
+
+
+};
+
+// typedef std::unordered_map<VoxelKey, Voxel, VoxelHash> VoxelMap;
+
+
 
 }  // namespace kumo
-
-// TODO
-// point2cell
-// point2voxel
-//
-// std::unordered_set<VoxelKey, VoxelHash> uniqueKeys(selectedVoxelKeys.begin(),
-// selectedVoxelKeys.end()); std::vector<VoxelKey>
-// uniqueVoxelKeys(uniqueKeys.begin(), uniqueKeys.end());
-// 在这种情况下，uniqueVoxelKeys 将包含无重复的 VoxelKey 列表。

@@ -40,7 +40,7 @@ class MovingPointIdentification {
   std::unordered_map<int, kumo::VoxelKey> point2voxel_;
   std::unordered_map<int, kumo::GridKey> point2grid_;
 
-  kumo::VoxelMap voxel_map_;
+  // kumo::VoxelMap voxel_map_;
 
   enum class ComparisonResult {
     CASE_A = 0,
@@ -204,7 +204,7 @@ class MovingPointIdentification {
                                  const CloudType &submap,
                                  const std::vector<int> &indices,
                                  std::vector<int> &vote_list_static,
-                                 std::vector<int> &vote_list_dynamic) {
+                                 std::vector<int> &vote_list_dynamic, kumo::VoxelMap& voxel_map) {
     const grid_map::Matrix &layer = range_im[layer_name_];
 
 #pragma omp parallel for
@@ -247,6 +247,12 @@ class MovingPointIdentification {
     // pointIdxBoxSearch);
     // // ROS_WARN("num_searched: %d", num_searched);
   }
+
+
+  void NormalAwareCompareSubmapWithScan() {
+
+  }
+
 
   void publish(const DataLoaderBase::Frame &frame,
                const CloudType::ConstPtr &input,
@@ -368,7 +374,7 @@ class MovingPointIdentification {
     static float voxel_size_ = 0.8;
     for (int i = 0; i < cloud->size(); i++) {
       const PointType &p = cloud->points[i];
-      kumo::insertPointIntoVoxelMap(p, i, voxel_size_, voxel_map, point2voxel_);
+      voxel_map.insertPointIntoVoxelMap(p, i);
       grid_map.insertPointIntoGridMap(p, i, false);
     }
   }
@@ -408,13 +414,16 @@ class MovingPointIdentification {
     kumo::GridMap kumo_grid_map(cloud_target);
     kumo_grid_map.InitGridTerrainHeights(grid_terrain, "elevation");
     InsertGround2GridMap(kumo_grid_map, cloud_ground_ds);
+
+    kumo::VoxelMap voxel_map_(cloud_target);
     InsertNonground2GridAndVoxelMaps(voxel_map_, kumo_grid_map, cloud_target);
     // kumo_grid_map.DEBUGGetGroundNum();
     // ROS_BREAK();
 
     ROS_ERROR("original cloud size: %d", cloud->size());
     ROS_ERROR("ds cloud size: %d", cloud_target->size());
-    ROS_ERROR("kumo: voxel map size: %d", voxel_map_.size());
+    ROS_ERROR("kumo: voxel map size: %d, total record points: %d", voxel_map_.num_valid_voxels_,
+              voxel_map_.num_points_total_);
     ROS_ERROR("kumo: grid map size: %d, total record points: %d",
               kumo_grid_map.num_valid_grids_, kumo_grid_map.num_points_total_);
 
@@ -491,7 +500,7 @@ class MovingPointIdentification {
       // submap_indices, vote_list_static, vote_list_dynamic);
       KumoCompareSubmapWithScan(*range_im, *lidar_coordinate_submap,
                                 submap_indices, vote_list_static,
-                                vote_list_dynamic);
+                                vote_list_dynamic, voxel_map_);
       std::cout << "compare: " << (ros::WallTime::now() - st).toSec() << " sec"
                 << std::endl;
 
