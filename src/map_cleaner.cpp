@@ -23,7 +23,7 @@ class MapCleaner
 
   std::string save_dir_;
 
-  ros::Publisher pub_ground_, pub_static_, pub_dynamic_, pub_ground_below_, pub_other_, pub_terrain_;
+  ros::Publisher pub_ground_, pub_static_, pub_dynamic_, pub_ground_below_, pub_other_, pub_terrain_, pub_expanded_;
   #ifdef PUBLISH_GRID_MAP
   ros::Publisher pub_grid_map_;
   #endif
@@ -43,6 +43,7 @@ class MapCleaner
   std::string frame_id_;
   
   pcl::VoxelGridLarge<PointType> vis_vg_;
+
 
   void publishCloud(const CloudType::ConstPtr &cloud, const PIndices::ConstPtr &indices, const std::string frame_id, ros::Publisher &pub)
   {
@@ -174,6 +175,7 @@ class MapCleaner
     pub_ground_below_ = nh_.advertise<sensor_msgs::PointCloud2>("ground_below_cloud", 1, true);
     pub_other_ = nh_.advertise<sensor_msgs::PointCloud2>("other_cloud", 1, true);
     pub_terrain_ = nh_.advertise<sensor_msgs::PointCloud2>("terrain_cloud", 1, true);
+    pub_expanded_ = nh_.advertise<sensor_msgs::PointCloud2>("expanded_cloud", 1, true);
     #ifdef PUBLISH_GRID_MAP
     pub_grid_map_ = nh_.advertise<grid_map_msgs::GridMap>("grid_map", 1, true);
     #endif
@@ -414,10 +416,11 @@ public:
 
     PIndices::Ptr static_indices(new PIndices);
     PIndices::Ptr dynamic_indices(new PIndices);
+    PIndices::Ptr extra_dynamic_indices(new PIndices);
     if (!moving_point_identification_->compute(
             loader_, divide_by_terrain_, *grid_map_ptr, cloud,
-            ground_above_indices, ground_indices ,* static_indices,
-            *dynamic_indices)) {
+            ground_above_indices, ground_indices, *static_indices,
+            *dynamic_indices, *extra_dynamic_indices)) {
       return ;
     }
     ROS_INFO_STREAM("Finished: Moving Point Identification");
@@ -427,6 +430,10 @@ public:
     publishCloud(cloud, dynamic_indices, frame_id_, pub_dynamic_);
     publishCloud(cloud, ground_below_indices, frame_id_, pub_ground_below_);
     publishCloud(cloud, other_indices, frame_id_, pub_other_);
+    // kumo
+    //     PIndices dummy_indices;
+    ROS_WARN("pub expanded num: %d", extra_dynamic_indices->indices.size());
+    publishCloud(cloud, extra_dynamic_indices, frame_id_, pub_expanded_);
 
     saveCloud(save_dir_ + "terrain.pcd", *terrain_pcd);
     saveCloud(save_dir_ + "static.pcd", *cloud, static_indices);

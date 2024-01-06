@@ -5,6 +5,8 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /PointCloud23
+        - /PointCloud28
       Splitter Ratio: 0.517241358757019
     Tree Height: 1153
   - Class: rviz/Selection
@@ -270,6 +272,34 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: true
       Value: false
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/PointCloud2
+      Color: 255; 0; 255
+      Color Transformer: FlatColor
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Min Color: 0; 0; 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Queue Size: 10
+      Selectable: true
+      Size (Pixels): 5
+      Size (m): 0.009999999776482582
+      Style: Points
+      Topic: /expanded_cloud
+      Unreliable: false
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 46; 52; 54
@@ -298,25 +328,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 203.81179809570312
+      Distance: 93.72097778320312
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -59.55906295776367
+        Y: 8.487796783447266
+        Z: -4.494097709655762
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9847966432571411
+      Pitch: 1.5697963237762451
       Target Frame: lidar
       Value: Orbit (rviz)
-      Yaw: 6.19857931137085
+      Yaw: 4.700392246246338
     Saved: ~
 Window Geometry:
   Displays:
@@ -334,5 +364,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 2488
-  X: 0
-  Y: 0
+  X: -32
+  Y: -4

@@ -50,3 +50,7 @@ struct PointCloudAdaptor
 template<typename PointT>
 using KDTreeNanoFlannPCL = nanoflann::KDTreeSingleIndexAdaptor<nanoflann::L2_Simple_Adaptor<float, PointCloudAdaptor<PointT>>,
                                                                PointCloudAdaptor<PointT>, 3, int>;
+
+
+
+                                                           
